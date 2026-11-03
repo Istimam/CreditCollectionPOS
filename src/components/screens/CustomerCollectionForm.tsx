@@ -62,6 +62,7 @@ export const CustomerCollectionForm: React.FC<CustomerCollectionFormProps> = ({
     if (available && available.length > 0) {
       setSelectedAccount(available[0]);
     }
+    setReferenceNo(''); // Reset reference when method switches
   }, [paymentMethod]);
 
   // 2. Checkboxes
@@ -287,6 +288,16 @@ export const CustomerCollectionForm: React.FC<CustomerCollectionFormProps> = ({
 
     if (!selectedAccount) {
       setFormError('Please select a valid Account / Wallet from the dropdown.');
+      return;
+    }
+
+    if (paymentMethod === 'Bank' && !referenceNo.trim()) {
+      setFormError('Instrument / Cheque No is required for Bank payment.');
+      return;
+    }
+
+    if (paymentMethod === 'Wallet' && !referenceNo.trim()) {
+      setFormError('Transaction Reference / OTP is required for Wallet payment.');
       return;
     }
 
@@ -528,19 +539,47 @@ export const CustomerCollectionForm: React.FC<CustomerCollectionFormProps> = ({
               </div>
             </div>
 
-            {/* Instrument / Cheque / Ref No */}
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                Instrument / Cheque No
-              </label>
-              <input
-                type="text"
-                value={referenceNo}
-                onChange={(e) => setReferenceNo(e.target.value)}
-                placeholder="Optional ref or cheque no"
-                className="w-full text-xs border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-700"
-              />
-            </div>
+            {/* Bank: Instrument / Cheque No (mandatory) */}
+            {paymentMethod === 'Bank' && (
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  Instrument / Cheque No <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={referenceNo}
+                  onChange={(e) => setReferenceNo(e.target.value)}
+                  placeholder="Cheque / instrument number"
+                  className={`w-full text-xs border rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-700 ${
+                    !referenceNo.trim() ? 'border-red-300 bg-red-50/40' : 'border-gray-300'
+                  }`}
+                />
+                {!referenceNo.trim() && (
+                  <p className="text-[10px] text-red-500 mt-0.5">Required for Bank payment</p>
+                )}
+              </div>
+            )}
+
+            {/* Wallet: Transaction Ref / OTP (mandatory) */}
+            {paymentMethod === 'Wallet' && (
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  Transaction Ref / OTP <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={referenceNo}
+                  onChange={(e) => setReferenceNo(e.target.value)}
+                  placeholder="Transaction ID or OTP reference"
+                  className={`w-full text-xs border rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-700 ${
+                    !referenceNo.trim() ? 'border-red-300 bg-red-50/40' : 'border-gray-300'
+                  }`}
+                />
+                {!referenceNo.trim() && (
+                  <p className="text-[10px] text-red-500 mt-0.5">Required for Wallet payment</p>
+                )}
+              </div>
+            )}
 
             {/* Money Receipt No */}
             <div>

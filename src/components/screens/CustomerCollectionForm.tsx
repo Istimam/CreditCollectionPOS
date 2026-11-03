@@ -44,9 +44,6 @@ export const CustomerCollectionForm: React.FC<CustomerCollectionFormProps> = ({
 
   // Form Metadata
   const [collectionDate, setCollectionDate] = useState<string>(formatDateYMD(new Date()));
-  const [moneyReceiptNo, setMoneyReceiptNo] = useState<string>(
-    'MR-' + Math.floor(10000 + Math.random() * 90000)
-  );
   const [remarks, setRemarks] = useState<string>('');
 
   // 1. Single Payment Method & Account DDL (One method per voucher transaction!)
@@ -140,8 +137,8 @@ export const CustomerCollectionForm: React.FC<CustomerCollectionFormProps> = ({
     return availableInvoicesForDropdown.filter(
       (inv) =>
         inv.invoiceNo.toLowerCase().includes(q) ||
-        (inv.challanNo && inv.challanNo.toLowerCase().includes(q)) ||
-        (inv.returnRefNo && inv.returnRefNo.toLowerCase().includes(q))
+        (inv.returnInvoices &&
+          inv.returnInvoices.some((r) => r.returnInvoiceNo.toLowerCase().includes(q)))
     );
   }, [availableInvoicesForDropdown, invoiceSearchQuery]);
 
@@ -342,7 +339,6 @@ export const CustomerCollectionForm: React.FC<CustomerCollectionFormProps> = ({
       account: selectedAccount,
       referenceNo,
       paymentAmount: activePaymentAmount,
-      moneyReceiptNo,
       remarks,
       invoiceAllocations: allocations,
     });
@@ -581,22 +577,8 @@ export const CustomerCollectionForm: React.FC<CustomerCollectionFormProps> = ({
               </div>
             )}
 
-            {/* Money Receipt No */}
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                Money Receipt No
-              </label>
-              <input
-                type="text"
-                value={moneyReceiptNo}
-                onChange={(e) => setMoneyReceiptNo(e.target.value)}
-                placeholder="MR-No"
-                className="w-full text-xs border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-700 font-mono"
-              />
-            </div>
-
             {/* Remarks */}
-            <div>
+            <div className={paymentMethod === 'Cash' ? 'sm:col-span-2' : ''}>
               <div className="flex items-center justify-between mb-1">
                 <label className="text-[11px] font-semibold text-slate-700">Remarks</label>
                 <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
@@ -763,7 +745,7 @@ export const CustomerCollectionForm: React.FC<CustomerCollectionFormProps> = ({
                     <th className="py-2.5 px-3 text-center w-16 font-semibold">Action</th>
                   )}
                   <th className="py-2.5 px-3 font-semibold">Invoice No</th>
-                  <th className="py-2.5 px-3 font-semibold">Return Ref / Challan</th>
+                  <th className="py-2.5 px-3 font-semibold">Return Inv / Ref</th>
                   <th className="py-2.5 px-3 font-semibold">Invoice Date</th>
                   <th className="py-2.5 px-3 font-semibold">Due Date</th>
                   <th className="py-2.5 px-3 text-center font-semibold">Overdue / Days</th>
@@ -860,15 +842,22 @@ export const CustomerCollectionForm: React.FC<CustomerCollectionFormProps> = ({
                           </button>
                         </td>
 
-                        {/* Return Ref / Challan (like POS No on purchase payment!) */}
-                        <td className="py-2 px-3 text-slate-600 font-mono text-[11px]">
-                          {inv.returnRefNo ? (
-                            <div className="flex flex-col">
-                              <span className="font-bold text-rose-700">{inv.returnRefNo}</span>
-                              <span className="text-[10px] text-slate-400">{inv.challanNo || '—'}</span>
+                        {/* Return Inv / Ref (Displays all return invoice numbers) */}
+                        <td className="py-2 px-3 text-slate-700 font-mono text-[11px]">
+                          {inv.returnInvoices && inv.returnInvoices.length > 0 ? (
+                            <div className="flex flex-col gap-1 items-start">
+                              {inv.returnInvoices.map((ret, rIdx) => (
+                                <span
+                                  key={rIdx}
+                                  title={`Return Inv: ${ret.returnInvoiceNo} | Date: ${formatDateDMY(ret.returnDate)} | Amount: ৳${formatCurrency(ret.returnAmount)}${ret.reason ? ' | ' + ret.reason : ''}`}
+                                  className="inline-flex items-center gap-1 font-bold text-[10px] bg-rose-50 text-rose-700 px-1.5 py-0.5 rounded border border-rose-200 hover:bg-rose-100 transition cursor-help"
+                                >
+                                  <span>{ret.returnInvoiceNo}</span>
+                                </span>
+                              ))}
                             </div>
                           ) : (
-                            <span className="text-slate-400">{inv.challanNo || '—'}</span>
+                            <span className="text-slate-300 font-sans">—</span>
                           )}
                         </td>
 
@@ -1036,10 +1025,6 @@ export const CustomerCollectionForm: React.FC<CustomerCollectionFormProps> = ({
                   <span className="font-mono text-slate-700">{referenceNo}</span>
                 </div>
               )}
-              <div className="flex justify-between">
-                <span className="text-slate-500">Money Receipt No:</span>
-                <span className="font-mono text-slate-700">{moneyReceiptNo}</span>
-              </div>
               <div className="flex justify-between text-sm font-bold border-t border-slate-200 pt-1.5">
                 <span className="text-slate-700">Total Collection Amount:</span>
                 <span className="text-emerald-700">৳ {formatCurrency(activePaymentAmount)}</span>

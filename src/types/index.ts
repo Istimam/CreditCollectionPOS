@@ -10,6 +10,21 @@ export interface InvoiceItem {
   total: number;
 }
 
+export interface ReturnInvoiceItem {
+  name: string;
+  qty: number;
+  unitPrice: number;
+  total: number;
+}
+
+export interface ReturnInvoiceRecord {
+  returnInvoiceNo: string;
+  returnDate: string; // YYYY-MM-DD
+  returnAmount: number;
+  reason?: string;
+  items?: ReturnInvoiceItem[];
+}
+
 export interface PaymentBreakdownItem {
   method: string;
   account: string;
@@ -39,9 +54,8 @@ export interface Invoice {
   grossAmount: number;
   discountAmount: number;
   netAmount: number;   // gross - discount
-  returnAmount: number; // Return amount against this invoice
-  returnRefNo?: string; // e.g. SR-FP26100004
-  challanNo?: string;   // e.g. CH-2610-19
+  returnAmount: number; // Total return amount against this invoice
+  returnInvoices?: ReturnInvoiceRecord[]; // Sales return invoices generated against this sale invoice
   creditAmount: number;
   previouslyCollected: number;
   dueAmount: number;   // creditAmount - previouslyCollected - returnAmount
@@ -95,7 +109,6 @@ export interface CollectionVoucher {
   referenceNo?: string;
   methodsSummary: string;
   invoicesAffected: InvoicesAffectedItem[];
-  moneyReceiptNo?: string;
   remarks?: string;
   createdBy: string;
 }

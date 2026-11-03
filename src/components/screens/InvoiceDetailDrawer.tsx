@@ -1,7 +1,7 @@
 import React from 'react';
 import { useCreditCollection } from '../../context/CreditCollectionContext';
 import { formatCurrency, formatDateDMY, getDaysDifference } from '../../utils/format';
-import { X, FileText, Calendar, CreditCard, DollarSign } from 'lucide-react';
+import { X, FileText, Calendar, CreditCard, DollarSign, RotateCcw } from 'lucide-react';
 
 export const InvoiceDetailDrawer: React.FC = () => {
   const {
@@ -98,21 +98,28 @@ export const InvoiceDetailDrawer: React.FC = () => {
               </div>
             </div>
 
-            {/* Return & Challan info */}
-            <div>
-              <div className="text-[11px] text-slate-400 font-medium">Sales Return Ref</div>
-              <div className="font-mono font-medium text-slate-800 mt-0.5">
-                {inv.returnRefNo ? (
-                  <span className="font-bold text-rose-700">{inv.returnRefNo}</span>
+            {/* Return Invoices info */}
+            <div className="col-span-2">
+              <div className="text-[11px] text-slate-400 font-medium">Sales Return Invoice(s)</div>
+              <div className="mt-1">
+                {inv.returnInvoices && inv.returnInvoices.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5 items-center">
+                    {inv.returnInvoices.map((ret, rIdx) => (
+                      <span
+                        key={rIdx}
+                        className="inline-flex items-center gap-1 font-mono font-bold text-xs bg-rose-50 text-rose-700 px-2 py-0.5 rounded border border-rose-200"
+                      >
+                        <RotateCcw className="w-3 h-3 text-rose-500" />
+                        <span>{ret.returnInvoiceNo}</span>
+                        <span className="text-[10px] text-rose-500 font-sans font-normal">
+                          (-৳{formatCurrency(ret.returnAmount)})
+                        </span>
+                      </span>
+                    ))}
+                  </div>
                 ) : (
-                  <span className="text-slate-400">None</span>
+                  <span className="text-slate-400 font-medium text-xs">No returns recorded</span>
                 )}
-              </div>
-            </div>
-            <div>
-              <div className="text-[11px] text-slate-400 font-medium">Challan / Delivery No</div>
-              <div className="font-mono font-medium text-slate-800 mt-0.5">
-                {inv.challanNo || '—'}
               </div>
             </div>
 
@@ -166,6 +173,80 @@ export const InvoiceDetailDrawer: React.FC = () => {
             </div>
           </div>
 
+          {/* Sales Return Invoices Section (When returns exist against this invoice) */}
+          {inv.returnInvoices && inv.returnInvoices.length > 0 && (
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <h4 className="font-bold text-rose-800 flex items-center gap-1.5">
+                  <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Sales Return Invoices ({inv.returnInvoices.length})</span>
+                </h4>
+                <span className="text-xs font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                  Total Return: -৳{formatCurrency(inv.returnAmount)}
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {inv.returnInvoices.map((ret, rIdx) => (
+                  <div
+                    key={rIdx}
+                    className="border border-rose-200 bg-rose-50/30 rounded-lg p-3 space-y-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-xs text-rose-800 bg-rose-100 px-2 py-0.5 rounded border border-rose-300">
+                          {ret.returnInvoiceNo}
+                        </span>
+                        <span className="text-[11px] text-slate-500">
+                          Date: {formatDateDMY(ret.returnDate)}
+                        </span>
+                      </div>
+                      <span className="font-bold text-xs text-rose-700 font-mono">
+                        -৳ {formatCurrency(ret.returnAmount)}
+                      </span>
+                    </div>
+
+                    {ret.reason && (
+                      <p className="text-[11px] text-slate-600 italic">
+                        <span className="font-semibold text-slate-700 not-italic">Reason:</span>{' '}
+                        {ret.reason}
+                      </p>
+                    )}
+
+                    {ret.items && ret.items.length > 0 && (
+                      <div className="bg-white rounded border border-rose-100 overflow-hidden mt-1.5">
+                        <table className="w-full text-left text-[11px]">
+                          <thead className="bg-rose-50/70 text-slate-600 text-[10px]">
+                            <tr>
+                              <th className="py-1 px-2.5">Returned Item</th>
+                              <th className="py-1 px-2 text-right">Qty</th>
+                              <th className="py-1 px-2 text-right">Unit Price</th>
+                              <th className="py-1 px-2.5 text-right">Total</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-rose-50">
+                            {ret.items.map((rItem, iIdx) => (
+                              <tr key={iIdx}>
+                                <td className="py-1 px-2.5 text-slate-700">{rItem.name}</td>
+                                <td className="py-1 px-2 text-right text-slate-600">{rItem.qty}</td>
+                                <td className="py-1 px-2 text-right text-slate-600">
+                                  ৳{formatCurrency(rItem.unitPrice)}
+                                </td>
+                                <td className="py-1 px-2.5 text-right font-medium text-rose-700">
+                                  ৳{formatCurrency(rItem.total)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Financial Calculation Reconcile Card */}
           <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-200 space-y-2">
             <div className="flex justify-between text-slate-600">
@@ -179,17 +260,31 @@ export const InvoiceDetailDrawer: React.FC = () => {
               </span>
             </div>
             <div className="flex justify-between text-slate-800 font-bold border-t border-slate-200 pt-1.5">
-              <span>Net Invoice Amount:</span>
+              <span>Net Sale Amount:</span>
               <span>৳ {formatCurrency(inv.netAmount)}</span>
             </div>
             {inv.returnAmount > 0 && (
-              <div className="flex justify-between text-rose-700 font-semibold">
-                <span>Sales Return Adjusted ({inv.returnRefNo}):</span>
-                <span>-৳ {formatCurrency(inv.returnAmount)}</span>
+              <div className="bg-rose-50/80 border border-rose-200 p-2 rounded text-rose-800 space-y-1">
+                <div className="flex justify-between font-bold text-xs">
+                  <span>
+                    Sales Return Deducted ({inv.returnInvoices?.length || 1} Return Inv):
+                  </span>
+                  <span className="font-mono">-৳ {formatCurrency(inv.returnAmount)}</span>
+                </div>
+                {inv.returnInvoices && inv.returnInvoices.length > 0 && (
+                  <div className="text-[10px] text-rose-600 flex flex-wrap gap-1 font-mono">
+                    {inv.returnInvoices.map((r, idx) => (
+                      <span key={idx}>
+                        {r.returnInvoiceNo} (-৳{formatCurrency(r.returnAmount)})
+                        {idx < (inv.returnInvoices?.length || 0) - 1 ? ' • ' : ''}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
             <div className="flex justify-between text-blue-700 font-semibold">
-              <span>Credit Amount:</span>
+              <span>Net Credit Amount:</span>
               <span>৳ {formatCurrency(inv.creditAmount)}</span>
             </div>
             <div className="flex justify-between text-emerald-700 font-bold">

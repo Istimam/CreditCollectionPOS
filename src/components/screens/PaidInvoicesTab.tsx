@@ -16,7 +16,8 @@ export const PaidInvoicesTab: React.FC = () => {
       inv.customerName.toLowerCase().includes(q) ||
       inv.customerCode.toLowerCase().includes(q) ||
       inv.customerMobile.includes(q) ||
-      (inv.returnRefNo && inv.returnRefNo.toLowerCase().includes(q))
+      (inv.returnInvoices &&
+        inv.returnInvoices.some((r) => r.returnInvoiceNo.toLowerCase().includes(q)))
     );
   });
 
@@ -34,7 +35,7 @@ export const PaidInvoicesTab: React.FC = () => {
             <tr>
               <th className="py-2.5 px-3 text-center w-12 font-semibold">SL</th>
               <th className="py-2.5 px-3 font-semibold">Invoice No</th>
-              <th className="py-2.5 px-3 font-semibold">Return Ref / Challan</th>
+              <th className="py-2.5 px-3 font-semibold">Return Inv / Ref</th>
               <th className="py-2.5 px-3 font-semibold">Customer</th>
               <th className="py-2.5 px-3 font-semibold">Mobile No</th>
               <th className="py-2.5 px-3 font-semibold">Invoice Date</th>
@@ -87,15 +88,22 @@ export const PaidInvoicesTab: React.FC = () => {
                       <span>{inv.invoiceNo}</span>
                     </td>
 
-                    {/* Return Ref / Challan */}
-                    <td className="py-2.5 px-3 text-slate-600 font-mono text-[11px]">
-                      {inv.returnRefNo ? (
-                        <div className="flex flex-col">
-                          <span className="font-bold text-rose-700">{inv.returnRefNo}</span>
-                          <span className="text-[10px] text-slate-400">{inv.challanNo || '—'}</span>
+                    {/* Return Inv / Ref */}
+                    <td className="py-2.5 px-3 text-slate-700 font-mono text-[11px]">
+                      {inv.returnInvoices && inv.returnInvoices.length > 0 ? (
+                        <div className="flex flex-col gap-1 items-start">
+                          {inv.returnInvoices.map((ret, rIdx) => (
+                            <span
+                              key={rIdx}
+                              title={`Return Inv: ${ret.returnInvoiceNo} | Date: ${formatDateDMY(ret.returnDate)} | Amount: ৳${formatCurrency(ret.returnAmount)}`}
+                              className="font-bold text-[10px] bg-rose-50 text-rose-700 px-1.5 py-0.5 rounded border border-rose-200"
+                            >
+                              {ret.returnInvoiceNo}
+                            </span>
+                          ))}
                         </div>
                       ) : (
-                        <span className="text-slate-400">{inv.challanNo || '—'}</span>
+                        <span className="text-slate-300 font-sans">—</span>
                       )}
                     </td>
 

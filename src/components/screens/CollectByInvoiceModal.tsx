@@ -25,7 +25,9 @@ export const CollectByInvoiceModal: React.FC = () => {
     return (
       inv.invoiceNo.toLowerCase().includes(q) ||
       inv.customerName.toLowerCase().includes(q) ||
-      inv.customerCode.toLowerCase().includes(q)
+      inv.customerCode.toLowerCase().includes(q) ||
+      (inv.returnInvoices &&
+        inv.returnInvoices.some((r) => r.returnInvoiceNo.toLowerCase().includes(q)))
     );
   });
 

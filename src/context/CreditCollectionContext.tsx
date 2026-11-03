@@ -44,7 +44,6 @@ interface CreditCollectionContextType {
     account: string;
     referenceNo?: string;
     paymentAmount: number;
-    moneyReceiptNo?: string;
     remarks?: string;
     invoiceAllocations: Record<string, number>;
   }) => { success: boolean; voucherNo?: string; error?: string };
@@ -106,7 +105,6 @@ export const CreditCollectionProvider: React.FC<{ children: React.ReactNode }> =
     account: string;
     referenceNo?: string;
     paymentAmount: number;
-    moneyReceiptNo?: string;
     remarks?: string;
     invoiceAllocations: Record<string, number>;
   }) => {
@@ -215,7 +213,6 @@ export const CreditCollectionProvider: React.FC<{ children: React.ReactNode }> =
       referenceNo: params.referenceNo,
       methodsSummary,
       invoicesAffected: invoicesAffectedList,
-      moneyReceiptNo: params.moneyReceiptNo || '',
       remarks: params.remarks || '',
       createdBy: 'Saddam Khan',
     };
@@ -353,7 +350,6 @@ export const CreditCollectionProvider: React.FC<{ children: React.ReactNode }> =
           referenceNo: row.referenceNo,
           methodsSummary: `${row.paymentMethod} (৳${allocatedTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })})`,
           invoicesAffected,
-          moneyReceiptNo: '',
           remarks: `Bulk Upload: ${row.remarks || 'Processed via Excel'}`,
           createdBy: 'Saddam Khan',
         },

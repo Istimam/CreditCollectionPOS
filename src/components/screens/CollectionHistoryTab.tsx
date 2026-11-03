@@ -14,8 +14,7 @@ export const CollectionHistoryTab: React.FC = () => {
       v.voucherNo.toLowerCase().includes(q) ||
       v.customerName.toLowerCase().includes(q) ||
       v.customerCode.toLowerCase().includes(q) ||
-      v.customerMobile.includes(q) ||
-      (v.moneyReceiptNo && v.moneyReceiptNo.toLowerCase().includes(q))
+      v.customerMobile.includes(q)
     );
   });
 
@@ -38,7 +37,6 @@ export const CollectionHistoryTab: React.FC = () => {
               <th className="py-2.5 px-3 font-semibold">Mobile No</th>
               <th className="py-2.5 px-3 text-right font-semibold">Total Collected</th>
               <th className="py-2.5 px-3 font-semibold">Payment Methods</th>
-              <th className="py-2.5 px-3 font-semibold">Money Receipt No</th>
               <th className="py-2.5 px-3 text-center font-semibold">Invoices Affected</th>
               <th className="py-2.5 px-3 font-semibold">Created By</th>
               <th className="py-2.5 px-3 text-center font-semibold">Detail</th>
@@ -107,11 +105,6 @@ export const CollectionHistoryTab: React.FC = () => {
                         <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[11px] font-medium border border-slate-200">
                           {voucher.methodsSummary}
                         </span>
-                      </td>
-
-                      {/* Money Receipt No */}
-                      <td className="py-2.5 px-3 font-mono text-slate-600">
-                        {voucher.moneyReceiptNo || '—'}
                       </td>
 
                       {/* Invoices Count */}

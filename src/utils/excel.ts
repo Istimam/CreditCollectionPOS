@@ -251,8 +251,7 @@ export function exportPaidInvoicesToExcel(invoices: Invoice[], filename: string 
       return {
         'SL': idx + 1,
         'Invoice No': inv.invoiceNo,
-        'Return Ref': inv.returnRefNo || '—',
-        'Challan No': inv.challanNo || '—',
+        'Return Inv No(s)': inv.returnInvoices?.map((r) => r.returnInvoiceNo).join(', ') || '—',
         'Customer Code': inv.customerCode,
         'Customer Name': inv.customerName,
         'Customer Mobile': inv.customerMobile,
@@ -288,7 +287,6 @@ export function exportHistoryToExcel(vouchers: CollectionVoucher[], filename: st
     'Total Collected': v.totalCollected,
     'Payment Method': v.paymentMethod,
     'Account': v.account,
-    'Money Receipt No': v.moneyReceiptNo || '',
     'Invoices Settle Count': v.invoicesAffected.length,
     'Created By': v.createdBy,
     'Remarks': v.remarks || '',

@@ -74,13 +74,13 @@ const MainLayout: React.FC = () => {
       <>
         <PageHeader />
         <Tabs />
-        {activeTab !== 'BATCHES' && <FilterBar />}
+        {activeTab !== 'BULK_UPLOAD' && <FilterBar />}
 
         <div className="flex-1 flex flex-col">
           {activeTab === 'DUE_LIST' && <DueListTab />}
           {activeTab === 'PAID_INVOICES' && <PaidInvoicesTab />}
-          {activeTab === 'REQUESTS' && <RequestsTab />}
-          {activeTab === 'BATCHES' && <BatchesTab />}
+          {activeTab === 'PENDING_LIST' && <RequestsTab />}
+          {activeTab === 'BULK_UPLOAD' && <BatchesTab />}
         </div>
       </>
     );

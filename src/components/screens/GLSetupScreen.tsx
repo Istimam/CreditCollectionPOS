@@ -94,6 +94,7 @@ export const GLSetupScreen: React.FC = () => {
             <GLPicker
               label="Default Cash Receipt GL"
               required
+              paymentMethod="Cash"
               purposeTags={['Collection Receipt']}
               value={defaultCashGL}
               onChange={setDefaultCashGL}
@@ -102,6 +103,7 @@ export const GLSetupScreen: React.FC = () => {
             <GLPicker
               label="Default Bank Receipt GL"
               required
+              paymentMethod="Bank"
               purposeTags={['Collection Receipt']}
               value={defaultBankGL}
               onChange={setDefaultBankGL}
@@ -110,6 +112,7 @@ export const GLSetupScreen: React.FC = () => {
             <GLPicker
               label="Default Mobile Wallet Receipt GL"
               required
+              paymentMethod="Wallet"
               purposeTags={['Collection Receipt']}
               value={defaultWalletGL}
               onChange={setDefaultWalletGL}

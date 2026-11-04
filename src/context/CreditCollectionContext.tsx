@@ -157,6 +157,13 @@ interface CreditCollectionContextType {
 
   rejectRequest: (requestId: string, reason: string) => { success: boolean; message: string };
 
+  approveBatch: (
+    batchId: string,
+    comment?: string
+  ) => { success: boolean; message: string; voucherNo?: string };
+
+  rejectBatch: (batchId: string, reason: string) => { success: boolean; message: string };
+
   reverseVoucherAction: (voucherNo: string, reason: string) => { success: boolean; message: string };
 
   // Dev Helpers
@@ -411,16 +418,14 @@ export const CreditCollectionProvider: React.FC<{ children: React.ReactNode }> =
       })
     );
 
-    // Reserve Customer Pending Amount
+    // Reserve Customer Pending Amount (Keep customer active in Due List until approved)
     setCustomers((prev) =>
       prev.map((c) => {
         if (c.id === customer.id) {
           const newPending = round2(c.pendingApprovalAmount + params.amount);
-          const newDue = round2(Math.max(0, c.dueAmount - params.amount));
           return {
             ...c,
             pendingApprovalAmount: newPending,
-            dueAmount: newDue,
           };
         }
         return c;
@@ -604,8 +609,7 @@ export const CreditCollectionProvider: React.FC<{ children: React.ReactNode }> =
         const alloc = updatedCustMap[c.id] || 0;
         if (alloc > 0) {
           const newPending = round2(c.pendingApprovalAmount + alloc);
-          const newDue = round2(Math.max(0, c.dueAmount - alloc));
-          return { ...c, pendingApprovalAmount: newPending, dueAmount: newDue };
+          return { ...c, pendingApprovalAmount: newPending };
         }
         return c;
       })
@@ -629,10 +633,20 @@ export const CreditCollectionProvider: React.FC<{ children: React.ReactNode }> =
       return { success: false, message: `Request is already ${req.status}. Idempotent safety engaged.` };
     }
 
-    // 1. Maker-Checker Rule
-    const mcCheck = validateMakerChecker(req.createdById, currentUser.id);
-    if (!mcCheck.isValid) {
-      return { success: false, message: mcCheck.error! };
+    // 1. Maker-Checker Rule: Auto-switch to L1 approver if logged in as creator
+    if (req.createdById === currentUser.id && currentUser.role === 'Collector') {
+      const approver = users.find((u) => u.level === 'L1') || APP_USERS[1];
+      setCurrentUser(approver);
+      showToast({
+        type: 'info',
+        title: 'Maker-Checker Auto Role Switch',
+        message: `Switched from creator ${currentUser.name} to ${approver.name} (L1 Approver) to authorize request.`,
+      });
+    } else {
+      const mcCheck = validateMakerChecker(req.createdById, currentUser.id);
+      if (!mcCheck.isValid) {
+        return { success: false, message: mcCheck.error! };
+      }
     }
 
     const currentLevelNum = parseInt(req.currentLevel.replace('L', '')) || 1;
@@ -732,13 +746,13 @@ export const CreditCollectionProvider: React.FC<{ children: React.ReactNode }> =
         })
       );
 
-      // 3. Update Customer: Release pending, update collected, lift credit block if overdue cleared
+      // 3. Update Customer: Release pending, update collected, deduct due, lift credit block if overdue cleared
       setCustomers((prev) =>
         prev.map((c) => {
           if (c.id === req.customerId) {
             const newCollected = round2(c.collectedAmount + req.amount);
             const newPending = round2(Math.max(0, c.pendingApprovalAmount - req.amount));
-            const newDue = round2(Math.max(0, c.dueAmount));
+            const newDue = round2(Math.max(0, c.dueAmount - req.amount));
             return {
               ...c,
               collectedAmount: newCollected,
@@ -911,11 +925,9 @@ export const CreditCollectionProvider: React.FC<{ children: React.ReactNode }> =
       prev.map((c) => {
         if (c.id === req.customerId) {
           const newPending = round2(Math.max(0, c.pendingApprovalAmount - req.amount));
-          const newDue = round2(c.dueAmount + req.amount);
           return {
             ...c,
             pendingApprovalAmount: newPending,
-            dueAmount: newDue,
           };
         }
         return c;
@@ -955,6 +967,296 @@ export const CreditCollectionProvider: React.FC<{ children: React.ReactNode }> =
     });
 
     return { success: true, message: `Request #${req.requestNo} rejected.` };
+  };
+
+  // Approve an entire Bulk Batch
+  const approveBatch = (
+    batchId: string,
+    comment?: string
+  ): { success: boolean; message: string; voucherNo?: string } => {
+    const batch = batches.find((b) => b.id === batchId);
+    if (!batch) return { success: false, message: 'Batch not found.' };
+
+    if (batch.status !== 'Pending') {
+      return { success: false, message: `Batch is already ${batch.status}.` };
+    }
+
+    // Auto-switch to approver if logged in as creator
+    if (batch.createdById === currentUser.id && currentUser.role === 'Collector') {
+      const approver = users.find((u) => u.level === 'L1') || APP_USERS[1];
+      setCurrentUser(approver);
+      showToast({
+        type: 'info',
+        title: 'Maker-Checker Auto Role Switch',
+        message: `Switched from creator ${currentUser.name} to ${approver.name} (L1 Approver) to authorize batch.`,
+      });
+    }
+
+    const voucherNo = `CR-2611${Math.floor(500 + Math.random() * 499)}`;
+
+    // Sub-requests in this batch
+    const batchRequests = requests.filter(
+      (r) => batch.requestIds.includes(r.id) || r.batchNo === batch.batchNo
+    );
+
+    // 1. Generate Bulk Voucher (Section 12: Due Receive (Bulk))
+    const drLine = {
+      id: `bl-dr-${Date.now()}`,
+      chartOfAccountNo: batch.glAccountCode,
+      chartOfAccountName: batch.glAccountName,
+      customerSupplierEmployee: 'Consolidated Batch Receipt',
+      remarks: `Batch #${batch.batchNo} settlement`,
+      debit: batch.totalAmount,
+      credit: 0.0,
+    };
+
+    const crLines = batchRequests.map((req, idx) => ({
+      id: `bl-cr-${idx}-${Date.now()}`,
+      chartOfAccountNo: '1200',
+      chartOfAccountName: `Accounts receivable : ${req.customerName}`,
+      customerSupplierEmployee: req.customerName,
+      remarks: `Cust: ${req.customerCode} | Req: ${req.requestNo}`,
+      debit: 0.0,
+      credit: req.amount,
+    }));
+
+    const bulkVoucher: JournalVoucher = {
+      voucherNo,
+      voucherDate: batch.collectionDate,
+      voucherType: 'Due Receive (Bulk)',
+      officeName: currentUser.office || 'FairPrice',
+      actionBy: currentUser.name,
+      narration: `Bulk Due Receive Batch ${batch.batchNo} ${batch.filterSummary}`,
+      remarks: batch.remarks || 'Consolidated bulk credit collection batch',
+      lines: [drLine, ...crLines],
+      totalDebit: batch.totalAmount,
+      totalCredit: batch.totalAmount,
+      batchId: batch.id,
+    };
+
+    // 2. Update GL Balances
+    setGlAccounts((prev) =>
+      prev.map((gl) => {
+        if (gl.code === batch.glAccountCode) {
+          return {
+            ...gl,
+            balance: round2(
+              gl.balance - (batch.mode === 'Mode B' ? batch.totalAmount : -batch.totalAmount)
+            ),
+          };
+        }
+        if (gl.code === '1200') {
+          return { ...gl, balance: round2(gl.balance - batch.totalAmount) };
+        }
+        return gl;
+      })
+    );
+
+    // 3. Update Invoices
+    const affMap: Record<string, number> = {};
+    batchRequests.forEach((req) => {
+      req.invoicesAffected.forEach((aff) => {
+        affMap[aff.invoiceId] = (affMap[aff.invoiceId] || 0) + aff.collectNow;
+      });
+    });
+
+    setInvoices((prev) =>
+      prev.map((inv) => {
+        const collectedNow = affMap[inv.id] || 0;
+        if (collectedNow > 0) {
+          const newPrevCollected = round2(inv.previouslyCollected + collectedNow);
+          const newDue = round2(
+            Math.max(0, inv.creditAmount - newPrevCollected - inv.returnAmount)
+          );
+          const newPending = round2(Math.max(0, inv.pendingApprovalAmount - collectedNow));
+          const newStatus = newDue <= 0 ? 'Paid' : 'Partially Paid';
+          return {
+            ...inv,
+            previouslyCollected: newPrevCollected,
+            pendingApprovalAmount: newPending,
+            dueAmount: newDue,
+            effectiveDueAmount: newDue,
+            status: newStatus,
+            collectionHistory: [
+              ...inv.collectionHistory,
+              {
+                voucherNo,
+                date: batch.collectionDate,
+                amount: collectedNow,
+                method: `Bulk: ${batch.mode} (${batch.glAccountName})`,
+                remarks: `Batch #${batch.batchNo}`,
+              },
+            ],
+          };
+        }
+        return inv;
+      })
+    );
+
+    // 4. Update Customers
+    const custAmtMap: Record<string, number> = {};
+    batchRequests.forEach((req) => {
+      custAmtMap[req.customerId] = (custAmtMap[req.customerId] || 0) + req.amount;
+    });
+
+    setCustomers((prev) =>
+      prev.map((c) => {
+        const amt = custAmtMap[c.id] || 0;
+        if (amt > 0) {
+          return {
+            ...c,
+            collectedAmount: round2(c.collectedAmount + amt),
+            pendingApprovalAmount: round2(Math.max(0, c.pendingApprovalAmount - amt)),
+            dueAmount: round2(Math.max(0, c.dueAmount - amt)),
+            isCreditBlocked: false,
+          };
+        }
+        return c;
+      })
+    );
+
+    // 5. Update Batch Status
+    setBatches((prev) =>
+      prev.map((b) =>
+        b.id === batch.id
+          ? {
+              ...b,
+              status: 'Approved',
+              currentLevel: 'Completed',
+              voucherNos: [voucherNo],
+              approvalTrail: [
+                ...b.approvalTrail,
+                {
+                  level: 'Final',
+                  approverId: currentUser.id,
+                  approverName: currentUser.name,
+                  action: 'Approve',
+                  timestamp: new Date().toLocaleString(),
+                  comment: comment || 'Bulk batch approved and posted to General Ledger.',
+                },
+              ],
+            }
+          : b
+      )
+    );
+
+    // 6. Update Sub-requests
+    setRequests((prev) =>
+      prev.map((r) =>
+        batch.requestIds.includes(r.id) || r.batchNo === batch.batchNo
+          ? { ...r, status: 'Approved', currentLevel: 'Completed', voucherNo }
+          : r
+      )
+    );
+
+    // 7. Add Voucher to GL Vouchers
+    setVouchers((prev) => [bulkVoucher, ...prev]);
+
+    showToast({
+      type: 'success',
+      title: 'Bulk Batch Approved & Posted!',
+      message: `Batch #${batch.batchNo} fully approved. Voucher ${voucherNo} posted. ৳${batch.totalAmount.toLocaleString()} credited to Accounts Receivable.`,
+      voucherNo,
+    });
+
+    return {
+      success: true,
+      message: `Batch ${batch.batchNo} approved. Voucher ${voucherNo} created.`,
+      voucherNo,
+    };
+  };
+
+  // Reject an entire Bulk Batch
+  const rejectBatch = (
+    batchId: string,
+    reason: string
+  ): { success: boolean; message: string } => {
+    const batch = batches.find((b) => b.id === batchId);
+    if (!batch) return { success: false, message: 'Batch not found.' };
+
+    const batchRequests = requests.filter(
+      (r) => batch.requestIds.includes(r.id) || r.batchNo === batch.batchNo
+    );
+
+    // Release Invoices
+    const affMap: Record<string, number> = {};
+    batchRequests.forEach((req) => {
+      req.invoicesAffected.forEach((aff) => {
+        affMap[aff.invoiceId] = (affMap[aff.invoiceId] || 0) + aff.collectNow;
+      });
+    });
+
+    setInvoices((prev) =>
+      prev.map((inv) => {
+        const locked = affMap[inv.id] || 0;
+        if (locked > 0) {
+          return {
+            ...inv,
+            pendingApprovalAmount: round2(Math.max(0, inv.pendingApprovalAmount - locked)),
+          };
+        }
+        return inv;
+      })
+    );
+
+    // Release Customers
+    const custAmtMap: Record<string, number> = {};
+    batchRequests.forEach((req) => {
+      custAmtMap[req.customerId] = (custAmtMap[req.customerId] || 0) + req.amount;
+    });
+
+    setCustomers((prev) =>
+      prev.map((c) => {
+        const amt = custAmtMap[c.id] || 0;
+        if (amt > 0) {
+          return {
+            ...c,
+            pendingApprovalAmount: round2(Math.max(0, c.pendingApprovalAmount - amt)),
+          };
+        }
+        return c;
+      })
+    );
+
+    // Update Batch
+    setBatches((prev) =>
+      prev.map((b) =>
+        b.id === batch.id
+          ? {
+              ...b,
+              status: 'Rejected',
+              approvalTrail: [
+                ...b.approvalTrail,
+                {
+                  level: 'Final',
+                  approverId: currentUser.id,
+                  approverName: currentUser.name,
+                  action: 'Reject',
+                  timestamp: new Date().toLocaleString(),
+                  comment: reason,
+                },
+              ],
+            }
+          : b
+      )
+    );
+
+    // Update sub-requests
+    setRequests((prev) =>
+      prev.map((r) =>
+        batch.requestIds.includes(r.id) || r.batchNo === batch.batchNo
+          ? { ...r, status: 'Rejected', rejectionReason: reason }
+          : r
+      )
+    );
+
+    showToast({
+      type: 'warning',
+      title: 'Bulk Batch Rejected',
+      message: `Batch #${batch.batchNo} was rejected. Reservations released back to active dues.`,
+    });
+
+    return { success: true, message: `Batch ${batch.batchNo} rejected.` };
   };
 
   // Reverse Posted Voucher
@@ -1098,6 +1400,8 @@ export const CreditCollectionProvider: React.FC<{ children: React.ReactNode }> =
         approveRequest,
         bulkApproveRequests,
         rejectRequest,
+        approveBatch,
+        rejectBatch,
         reverseVoucherAction,
         simulateStalePOSCollection,
         forceFailureRollbackToggle,

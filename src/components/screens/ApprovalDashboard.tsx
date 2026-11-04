@@ -9,6 +9,7 @@ import {
   Users,
   Boxes,
   ShieldCheck,
+  Layers,
 } from 'lucide-react';
 
 interface TileProps {
@@ -59,7 +60,12 @@ const ApprovalTile: React.FC<TileProps> = ({ title, count, icon, onClick, isSpec
 };
 
 export const ApprovalDashboard: React.FC = () => {
-  const { navigateTo, pendingApprovalCountForCurrentUser, currentUser } = useCreditCollection();
+  const { navigateTo, requests, batches, currentUser } = useCreditCollection();
+
+  const pendingSingleCount = requests.filter(
+    (r) => r.type === 'Single' && r.status === 'Pending'
+  ).length;
+  const pendingBulkCount = batches.filter((b) => b.status === 'Pending').length;
 
   return (
     <div className="flex-1 bg-slate-50 min-h-screen text-slate-800 p-6 space-y-6">
@@ -100,9 +106,16 @@ export const ApprovalDashboard: React.FC = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
           <ApprovalTile
-            title="Due Collection Approval"
-            count={pendingApprovalCountForCurrentUser}
+            title="Single Due Collection Approval"
+            count={pendingSingleCount}
             icon={<DollarSign className="w-4 h-4 text-emerald-600" />}
+            onClick={() => navigateTo('APPROVAL', 'DUE_APPROVAL_LIST')}
+            isSpecial={true}
+          />
+          <ApprovalTile
+            title="Bulk Due Collection Approval"
+            count={pendingBulkCount}
+            icon={<Layers className="w-4 h-4 text-blue-600" />}
             onClick={() => navigateTo('APPROVAL', 'DUE_APPROVAL_LIST')}
             isSpecial={true}
           />

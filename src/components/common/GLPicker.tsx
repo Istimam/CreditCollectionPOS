@@ -8,6 +8,7 @@ interface GLPickerProps {
   label?: string;
   required?: boolean;
   purposeTags?: GLPurposeTag[];
+  paymentMethod?: 'Cash' | 'Bank' | 'Wallet';
   value: string; // GL Code
   onChange: (code: string) => void;
   className?: string;
@@ -17,15 +18,35 @@ export const GLPicker: React.FC<GLPickerProps> = ({
   label,
   required = false,
   purposeTags,
+  paymentMethod,
   value,
   onChange,
   className = '',
 }) => {
   const { glAccounts, setIsNewGLModalOpen } = useCreditCollection();
 
-  const filteredAccounts = purposeTags
-    ? glAccounts.filter((gl) => purposeTags.includes(gl.purposeTag))
-    : glAccounts;
+  const filteredAccounts = glAccounts.filter((gl) => {
+    // 1. Purpose tag filter if provided
+    if (purposeTags && purposeTags.length > 0 && !purposeTags.includes(gl.purposeTag)) {
+      return false;
+    }
+
+    // 2. Payment Method category filter
+    if (paymentMethod === 'Cash') {
+      return gl.category === 'Cash Account' || /cash/i.test(gl.name);
+    }
+    if (paymentMethod === 'Bank') {
+      return gl.category === 'Bank Account' || /bank/i.test(gl.name);
+    }
+    if (paymentMethod === 'Wallet') {
+      return (
+        gl.category === 'Mobile Financial Services' ||
+        /bkash|nagad|rocket|wallet/i.test(gl.name)
+      );
+    }
+
+    return true;
+  });
 
   const selectedGL = glAccounts.find((g) => g.code === value);
 

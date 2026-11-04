@@ -3,7 +3,7 @@ import { useCreditCollection } from '../../../context/CreditCollectionContext';
 import { formatCurrency, formatDateDMY } from '../../../utils/format';
 import { GLPicker } from '../../common/GLPicker';
 import { allocateFIFO, calculateModeBAvailability } from '../../../utils/domain';
-import { parseExcelFile } from '../../../utils/excel';
+import { parseExcelFile, downloadBulkTemplate } from '../../../utils/excel';
 import { Customer, Invoice, GLAccount } from '../../../types';
 import {
   ArrowLeft,
@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   Upload,
+  Download,
   ChevronDown,
   ChevronRight,
   Printer,
@@ -54,6 +55,7 @@ export const BulkWizardScreen: React.FC = () => {
 
   // --- Step 3: Settings State ---
   const [collectionMode, setCollectionMode] = useState<'Mode A' | 'Mode B'>('Mode B');
+  const [bulkPaymentMethod, setBulkPaymentMethod] = useState<'Bank' | 'Cash' | 'Wallet'>('Bank');
   const [selectedGLCode, setSelectedGLCode] = useState<string>(glSetup.defaultSettlementGL);
   const [collectionDate, setCollectionDate] = useState<string>(
     new Date().toISOString().split('T')[0]
@@ -239,7 +241,7 @@ export const BulkWizardScreen: React.FC = () => {
   return (
     <div className="flex-1 flex flex-col bg-slate-50 min-h-screen text-slate-800">
       {/* Top Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-14 z-20 shadow-xs print:hidden">
+      <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-20 shadow-xs print:hidden">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigateTo('POS', 'MAIN')}
@@ -306,17 +308,28 @@ export const BulkWizardScreen: React.FC = () => {
                 </h3>
               </div>
 
-              {/* Upload Excel alternative button */}
-              <label className="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 transition border border-slate-300">
-                <Upload className="w-3.5 h-3.5 text-blue-600" />
-                <span>Upload Excel File</span>
-                <input
-                  type="file"
-                  accept=".xlsx, .xls"
-                  onChange={handleExcelUpload}
-                  className="hidden"
-                />
-              </label>
+              {/* Download Template & Upload Excel buttons */}
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={downloadBulkTemplate}
+                  className="bg-white hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 transition border border-slate-300 shadow-xs"
+                >
+                  <Download className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Download Excel Format</span>
+                </button>
+
+                <label className="cursor-pointer bg-[#2F6FDE] hover:bg-[#255cc0] text-white px-3.5 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 transition shadow-xs">
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Upload Excel File</span>
+                  <input
+                    type="file"
+                    accept=".xlsx, .xls"
+                    onChange={handleExcelUpload}
+                    className="hidden"
+                  />
+                </label>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs">
@@ -694,13 +707,41 @@ export const BulkWizardScreen: React.FC = () => {
 
               {/* GL Picker */}
               <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
+                {collectionMode === 'Mode A' && (
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                      Payment Type <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={bulkPaymentMethod}
+                      onChange={(e) => {
+                        const m = e.target.value as 'Bank' | 'Cash' | 'Wallet';
+                        setBulkPaymentMethod(m);
+                        if (m === 'Bank') setSelectedGLCode(glSetup.defaultBankGL || '2081');
+                        else if (m === 'Cash') setSelectedGLCode(glSetup.defaultCashGL || '1000');
+                        else if (m === 'Wallet') setSelectedGLCode(glSetup.defaultWalletGL || '0173');
+                      }}
+                      className="w-full border border-gray-300 rounded px-2.5 py-1.5 bg-white text-slate-800 font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs mb-3"
+                    >
+                      <option value="Bank">Bank Account</option>
+                      <option value="Cash">Cash Account</option>
+                      <option value="Wallet">Mobile Financial Services (Wallet)</option>
+                    </select>
+                  </div>
+                )}
+
                 <GLPicker
                   label={
                     collectionMode === 'Mode B'
                       ? 'Settlement / Clearing GL Account'
-                      : 'Receiving GL Account'
+                      : bulkPaymentMethod === 'Bank'
+                      ? 'Deposit Bank GL Account'
+                      : bulkPaymentMethod === 'Wallet'
+                      ? 'Wallet MFS GL Account'
+                      : 'Receiving Cash GL Account'
                   }
                   required
+                  paymentMethod={collectionMode === 'Mode A' ? bulkPaymentMethod : undefined}
                   purposeTags={
                     collectionMode === 'Mode B'
                       ? ['Settlement/Clearing', 'Salary Deduction']

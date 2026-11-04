@@ -13,16 +13,16 @@ export const Tabs: React.FC = () => {
 
   const tabs: { key: TabType; label: string; count?: number; icon?: React.ReactNode }[] = [
     { key: 'DUE_LIST', label: 'DUE LIST', count: dueCustomersCount },
-    { key: 'PAID_INVOICES', label: 'PAID INVOICES', count: paidInvoicesCount },
     {
-      key: 'REQUESTS',
-      label: 'REQUESTS',
+      key: 'PENDING_LIST',
+      label: 'PENDING LIST',
       count: pendingRequestsCount,
       icon: <Clock className="w-3.5 h-3.5" />,
     },
+    { key: 'PAID_INVOICES', label: 'PAID INVOICES', count: paidInvoicesCount },
     {
-      key: 'BATCHES',
-      label: 'BATCHES',
+      key: 'BULK_UPLOAD',
+      label: 'BULK UPLOAD',
       count: batchesCount,
       icon: <Layers className="w-3.5 h-3.5" />,
     },

@@ -1,4 +1,4 @@
-export type TabType = 'DUE_LIST' | 'PAID_INVOICES' | 'REQUESTS' | 'BATCHES';
+export type TabType = 'DUE_LIST' | 'PENDING_LIST' | 'PAID_INVOICES' | 'BULK_UPLOAD';
 
 export type PaymentMethodType = 'Cash' | 'Bank' | 'Wallet';
 

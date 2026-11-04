@@ -57,22 +57,44 @@ export const CustomerCollectionForm: React.FC<CustomerCollectionFormProps> = ({
     return round2(customerDueInvoices.reduce((sum, inv) => sum + inv.dueAmount, 0));
   }, [customerDueInvoices]);
 
+  // Compute invoice reservations dynamically from pending requests
+  const reservedInvoicesMap = useMemo(() => {
+    const map: Record<string, { amount: number; requestNos: string[] }> = {};
+    requests
+      .filter((r) => r.status === 'Pending')
+      .forEach((r) => {
+        r.invoicesAffected.forEach((aff) => {
+          if (!map[aff.invoiceId]) {
+            map[aff.invoiceId] = { amount: 0, requestNos: [] };
+          }
+          map[aff.invoiceId].amount += aff.collectNow;
+          if (!map[aff.invoiceId].requestNos.includes(r.requestNo)) {
+            map[aff.invoiceId].requestNos.push(r.requestNo);
+          }
+        });
+      });
+    return map;
+  }, [requests]);
+
   // Total amount currently locked in pending approval requests
   const totalPendingApprovalAmount = useMemo(() => {
     return round2(
-      customerDueInvoices.reduce((sum, inv) => sum + (inv.pendingApprovalAmount || 0), 0)
+      customerDueInvoices.reduce((sum, inv) => {
+        const locked = reservedInvoicesMap[inv.id]?.amount ?? (inv.pendingApprovalAmount || 0);
+        return sum + locked;
+      }, 0)
     );
-  }, [customerDueInvoices]);
+  }, [customerDueInvoices, reservedInvoicesMap]);
 
   // Total available due that can be collected now (due minus already pending approval)
   const totalAvailableDue = useMemo(() => {
     return round2(
-      customerDueInvoices.reduce(
-        (sum, inv) => sum + Math.max(0, inv.dueAmount - (inv.pendingApprovalAmount || 0)),
-        0
-      )
+      customerDueInvoices.reduce((sum, inv) => {
+        const locked = reservedInvoicesMap[inv.id]?.amount ?? (inv.pendingApprovalAmount || 0);
+        return sum + Math.max(0, inv.dueAmount - locked);
+      }, 0)
     );
-  }, [customerDueInvoices]);
+  }, [customerDueInvoices, reservedInvoicesMap]);
 
   // Form Metadata
   const [collectionDate, setCollectionDate] = useState<string>(formatDateYMD(new Date()));
@@ -124,9 +146,13 @@ export const CustomerCollectionForm: React.FC<CustomerCollectionFormProps> = ({
 
   // Normal Mode: Cumulative Payment / Distribute Amount
   const [paymentAmount, setPaymentAmount] = useState<string>(() => {
-    const firstInv = customerDueInvoices[0];
+    const firstInv = customerDueInvoices.find((inv) => {
+      const locked = reservedInvoicesMap[inv.id]?.amount ?? (inv.pendingApprovalAmount || 0);
+      return inv.dueAmount - locked > 0;
+    });
     if (firstInv) {
-      const avail = Math.max(0, firstInv.dueAmount - (firstInv.pendingApprovalAmount || 0));
+      const locked = reservedInvoicesMap[firstInv.id]?.amount ?? (firstInv.pendingApprovalAmount || 0);
+      const avail = Math.max(0, firstInv.dueAmount - locked);
       return avail > 0 ? String(avail) : '';
     }
     return '';
@@ -140,9 +166,13 @@ export const CustomerCollectionForm: React.FC<CustomerCollectionFormProps> = ({
   // Allocation map: invoiceId -> Collect Now amount
   const [allocations, setAllocations] = useState<Record<string, number>>(() => {
     const initialMap: Record<string, number> = {};
-    if (customerDueInvoices.length > 0) {
-      const firstInv = customerDueInvoices[0];
-      const avail = Math.max(0, firstInv.dueAmount - (firstInv.pendingApprovalAmount || 0));
+    const firstInv = customerDueInvoices.find((inv) => {
+      const locked = reservedInvoicesMap[inv.id]?.amount ?? (inv.pendingApprovalAmount || 0);
+      return inv.dueAmount - locked > 0;
+    });
+    if (firstInv) {
+      const locked = reservedInvoicesMap[firstInv.id]?.amount ?? (firstInv.pendingApprovalAmount || 0);
+      const avail = Math.max(0, firstInv.dueAmount - locked);
       if (avail > 0) {
         initialMap[firstInv.id] = avail;
       }
@@ -495,7 +525,7 @@ export const CustomerCollectionForm: React.FC<CustomerCollectionFormProps> = ({
   return (
     <div className="flex-1 flex flex-col bg-slate-100 min-h-screen text-slate-800">
       {/* Top Bar with Back Arrow and SUBMIT Button */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-14 z-20 shadow-xs print:hidden">
+      <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-20 shadow-xs print:hidden">
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
@@ -680,7 +710,17 @@ export const CustomerCollectionForm: React.FC<CustomerCollectionFormProps> = ({
                 </label>
                 <select
                   value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value as PaymentMethodType)}
+                  onChange={(e) => {
+                    const newMethod = e.target.value as PaymentMethodType;
+                    setPaymentMethod(newMethod);
+                    if (newMethod === 'Cash') {
+                      setReceivingGLCode(glSetup.defaultCashGL || '1000');
+                    } else if (newMethod === 'Bank') {
+                      setReceivingGLCode(glSetup.defaultBankGL || '2081');
+                    } else if (newMethod === 'Wallet') {
+                      setReceivingGLCode(glSetup.defaultWalletGL || '0173');
+                    }
+                  }}
                   className="w-full border border-gray-300 rounded px-2.5 py-1.5 bg-white text-slate-800 font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"
                 >
                   <option value="Cash">Cash</option>
@@ -700,6 +740,7 @@ export const CustomerCollectionForm: React.FC<CustomerCollectionFormProps> = ({
                       : 'Receiving Cash GL Account'
                   }
                   required
+                  paymentMethod={paymentMethod}
                   purposeTags={['Collection Receipt']}
                   value={receivingGLCode}
                   onChange={setReceivingGLCode}
@@ -1084,7 +1125,8 @@ export const CustomerCollectionForm: React.FC<CustomerCollectionFormProps> = ({
                     const daysDiff = getDaysDifference(inv.dueDate);
                     const isOverdue = daysDiff < 0 && inv.dueAmount > 0;
                     const collectNow = allocations[inv.id] || 0;
-                    const pendingAmount = inv.pendingApprovalAmount || 0;
+                    const reservedInfo = reservedInvoicesMap[inv.id];
+                    const pendingAmount = reservedInfo ? reservedInfo.amount : (inv.pendingApprovalAmount || 0);
                     const availableDue = Math.max(0, inv.dueAmount - pendingAmount);
                     const isFullyLocked = availableDue <= 0 && pendingAmount > 0;
                     const balanceAfter = round2(Math.max(0, inv.dueAmount - collectNow));
@@ -1215,13 +1257,20 @@ export const CustomerCollectionForm: React.FC<CustomerCollectionFormProps> = ({
                         {/* Pending Approval (Reserved) */}
                         <td className="py-2 px-3 text-right font-bold text-amber-700 bg-amber-50/30">
                           {pendingAmount > 0 ? (
-                            <span
-                              className="inline-flex items-center gap-1 font-mono text-[11px]"
-                              title="Amount reserved by a pending approval request"
-                            >
-                              <Lock className="w-3 h-3 text-amber-500" />
-                              <span>৳{formatCurrency(pendingAmount)}</span>
-                            </span>
+                            <div className="flex flex-col items-end gap-0.5">
+                              <span
+                                className="inline-flex items-center gap-1 font-mono text-[11px]"
+                                title={`Reserved by: ${reservedInfo?.requestNos.join(', ') || 'Pending Req'}`}
+                              >
+                                <Lock className="w-3 h-3 text-amber-500" />
+                                <span>৳{formatCurrency(pendingAmount)}</span>
+                              </span>
+                              {reservedInfo && (
+                                <span className="text-[9px] text-amber-600 font-mono">
+                                  {reservedInfo.requestNos[0]}
+                                </span>
+                              )}
+                            </div>
                           ) : (
                             <span className="text-slate-300 font-mono">—</span>
                           )}
@@ -1283,7 +1332,7 @@ export const CustomerCollectionForm: React.FC<CustomerCollectionFormProps> = ({
                 <tfoot className="sticky bottom-0 bg-[#F0F5FC] text-slate-800 font-bold border-t-2 border-[#cbdff4] z-10 shadow-inner">
                   <tr>
                     <td
-                      colSpan={isInvoiceWise ? 13 : 12}
+                      colSpan={isInvoiceWise ? 12 : 11}
                       className="py-2.5 px-3 text-right font-bold uppercase tracking-wider text-slate-700"
                     >
                       Totals:

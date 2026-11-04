@@ -56,12 +56,12 @@ export const Toast: React.FC = () => {
               </span>
               <button
                 onClick={() => {
-                  setActiveTab('REQUESTS');
+                  setActiveTab('PENDING_LIST');
                   clearToast();
                 }}
                 className="text-[11px] text-blue-600 underline font-semibold hover:text-blue-800"
               >
-                View in Requests →
+                View in Pending List →
               </button>
             </div>
           )}

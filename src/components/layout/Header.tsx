@@ -18,7 +18,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
-  const { resetAllData } = useCreditCollection();
+  const { resetAllMockData } = useCreditCollection();
 
   return (
     <header className="bg-white border-b border-gray-200 h-14 flex items-center justify-between px-4 sticky top-0 z-30 select-none shadow-sm print:hidden">
@@ -58,7 +58,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
       <div className="flex items-center gap-2">
         {/* Reset Demo Data Button */}
         <button
-          onClick={resetAllData}
+          onClick={resetAllMockData}
           title="Reset Demo Mock Data"
           className="flex items-center gap-1 text-xs text-gray-500 hover:text-blue-600 px-2 py-1 rounded hover:bg-blue-50 transition border border-gray-200 mr-2"
         >

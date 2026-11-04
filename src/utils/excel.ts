@@ -318,3 +318,9 @@ export function exportErrorReport(invalidRows: BulkUploadRow[]): void {
   XLSX.utils.book_append_sheet(wb, ws, 'Bulk_Upload_Errors');
   XLSX.writeFile(wb, 'Bulk_Collection_Errors.xlsx');
 }
+
+/**
+ * Aliases for Bulk Wizard compatibility
+ */
+export const parseExcelFile = parseBulkExcel;
+export const exportToExcel = exportDueListToExcel;

@@ -7,19 +7,90 @@ import { Tabs } from './components/common/Tabs';
 import { FilterBar } from './components/common/FilterBar';
 import { DueListTab } from './components/screens/DueListTab';
 import { PaidInvoicesTab } from './components/screens/PaidInvoicesTab';
-import { CollectionHistoryTab } from './components/screens/CollectionHistoryTab';
-import { BulkCollectionTab } from './components/screens/BulkCollectionTab';
+import { RequestsTab } from './components/screens/RequestsTab';
+import { BatchesTab } from './components/screens/BatchesTab';
 import { CustomerCollectionForm } from './components/screens/CustomerCollectionForm';
 import { InvoiceDetailDrawer } from './components/screens/InvoiceDetailDrawer';
-import { CollectByInvoiceModal } from './components/screens/CollectByInvoiceModal';
+import { ApprovalDashboard } from './components/screens/ApprovalDashboard';
+import { DueCollectionApprovalScreen } from './components/screens/DueCollectionApprovalScreen';
+import { GLSetupScreen } from './components/screens/GLSetupScreen';
+import { ARLedgerReportScreen } from './components/screens/ARLedgerReportScreen';
+import { BulkWizardScreen } from './components/screens/BulkWizard/BulkWizardScreen';
+import { AccountJournalDetailsModal } from './components/modals/AccountJournalDetailsModal';
+import { RejectReasonModal } from './components/modals/RejectReasonModal';
+import { NewGLAccountModal } from './components/modals/NewGLAccountModal';
+import { DevControlsBar } from './components/common/DevControlsBar';
 import { Toast } from './components/common/Toast';
 
 const MainLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const { currentTab, selectedCustomer, setSelectedCustomer } = useCreditCollection();
+  const {
+    currentModule,
+    currentScreen,
+    activeTab,
+    selectedCustomer,
+    setSelectedCustomer,
+  } = useCreditCollection();
+
+  // Determine what main content to render
+  const renderContent = () => {
+    // APPROVAL module screens
+    if (currentModule === 'APPROVAL') {
+      if (currentScreen === 'DUE_APPROVAL_LIST') {
+        return <DueCollectionApprovalScreen />;
+      }
+      return <ApprovalDashboard />;
+    }
+
+    // POS module screens
+    if (currentScreen === 'GL_SETUP') {
+      return <GLSetupScreen />;
+    }
+    if (currentScreen === 'AR_LEDGER') {
+      return <ARLedgerReportScreen />;
+    }
+    if (currentScreen === 'BULK_WIZARD') {
+      return <BulkWizardScreen />;
+    }
+    if (currentScreen === 'COLLECT_SINGLE' && selectedCustomer) {
+      return (
+        <CustomerCollectionForm
+          customer={selectedCustomer}
+          onBack={() => setSelectedCustomer(null)}
+        />
+      );
+    }
+    if (selectedCustomer) {
+      return (
+        <CustomerCollectionForm
+          customer={selectedCustomer}
+          onBack={() => setSelectedCustomer(null)}
+        />
+      );
+    }
+
+    // Main CREDIT COLLECTION tab view
+    return (
+      <>
+        <PageHeader />
+        <Tabs />
+        {activeTab !== 'BATCHES' && <FilterBar />}
+
+        <div className="flex-1 flex flex-col">
+          {activeTab === 'DUE_LIST' && <DueListTab />}
+          {activeTab === 'PAID_INVOICES' && <PaidInvoicesTab />}
+          {activeTab === 'REQUESTS' && <RequestsTab />}
+          {activeTab === 'BATCHES' && <BatchesTab />}
+        </div>
+      </>
+    );
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC]">
+      {/* Dev Controls Bar (always at the very top in demo) */}
+      <DevControlsBar />
+
       {/* Top Header */}
       <Header onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
 
@@ -30,36 +101,17 @@ const MainLayout: React.FC = () => {
 
         {/* Center Content Workspace */}
         <main className="flex-1 flex flex-col overflow-y-auto">
-          {selectedCustomer ? (
-            /* Screen B: Single Customer Collection View */
-            <CustomerCollectionForm
-              customer={selectedCustomer}
-              onBack={() => setSelectedCustomer(null)}
-            />
-          ) : (
-            /* Screen A: Tabs List View */
-            <>
-              <PageHeader />
-              <Tabs />
-              {currentTab !== 'BULK_COLLECTION' && <FilterBar />}
-
-              {/* Tab Contents */}
-              <div className="flex-1 flex flex-col">
-                {currentTab === 'DUE_LIST' && <DueListTab />}
-                {currentTab === 'PAID_INVOICES' && <PaidInvoicesTab />}
-                {currentTab === 'COLLECTION_HISTORY' && <CollectionHistoryTab />}
-                {currentTab === 'BULK_COLLECTION' && <BulkCollectionTab />}
-              </div>
-            </>
-          )}
+          {renderContent()}
         </main>
       </div>
 
       {/* Slide-out Invoice Detail Drawer */}
       <InvoiceDetailDrawer />
 
-      {/* Modals */}
-      <CollectByInvoiceModal />
+      {/* Global Modals */}
+      <AccountJournalDetailsModal />
+      <RejectReasonModal />
+      <NewGLAccountModal />
 
       {/* Notifications Toast */}
       <Toast />

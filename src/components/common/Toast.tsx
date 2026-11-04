@@ -3,7 +3,7 @@ import { CheckCircle2, AlertTriangle, Info, X } from 'lucide-react';
 import { useCreditCollection } from '../../context/CreditCollectionContext';
 
 export const Toast: React.FC = () => {
-  const { toast, clearToast, setCurrentTab } = useCreditCollection();
+  const { toast, clearToast, setActiveTab } = useCreditCollection();
 
   useEffect(() => {
     if (toast) {
@@ -56,12 +56,12 @@ export const Toast: React.FC = () => {
               </span>
               <button
                 onClick={() => {
-                  setCurrentTab('COLLECTION_HISTORY');
+                  setActiveTab('REQUESTS');
                   clearToast();
                 }}
                 className="text-[11px] text-blue-600 underline font-semibold hover:text-blue-800"
               >
-                View in History →
+                View in Requests →
               </button>
             </div>
           )}

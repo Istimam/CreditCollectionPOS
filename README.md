@@ -2,6 +2,8 @@
 
 A fully functioning, high-fidelity UI mockup of the **Credit Collection** module (sales-side mirror of Supplier Payment) with **multi-level approval workflow (L1/L2/L3), GL-tagged double-entry accounting, single & 5-step bulk wizard collection, Excel upload/download, and General Ledger subledger audit** for the **MANAGERIUM ERP/POS** web application.
 
+**Live:** [https://istimam.github.io/CreditCollectionPOS/](https://istimam.github.io/CreditCollectionPOS/)
+
 Built strictly according to Managerium design conventions using **React 18 + TypeScript + Tailwind CSS + SheetJS (XLSX) + Lucide Icons + Vitest**.
 
 ---
